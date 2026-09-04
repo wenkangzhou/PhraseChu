@@ -33,6 +33,7 @@ export interface Expression {
   tags: string[];
   audioUrl?: string;
   source: ExpressionSource;
+  savedToPersonal?: boolean;
   createdAt: string;
 }
 

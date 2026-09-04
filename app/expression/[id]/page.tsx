@@ -2,9 +2,11 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
-import { ChevronRight, Star, Volume2 } from "@/components/icons";
+import { ChevronRight, Star } from "@/components/icons";
 import { LoadingScreen } from "@/components/loading-screen";
+import { SpeechButton } from "@/components/speech-button";
 import { StatusPill } from "@/components/status-pill";
+import { PronounceablePhrase } from "@/components/word-pronunciation";
 import { usePhraseChu } from "@/context/app-context";
 import { scenarioById, themeById } from "@/lib/data/catalog";
 import { createProgress } from "@/lib/srs";
@@ -19,19 +21,11 @@ export default function ExpressionPage() {
   const scenario = scenarioById(expression.scenarioId);
   const theme = themeById(expression.themeId);
   const favorite = favorites.includes(id);
-  const speak = () => {
-    if (!("speechSynthesis" in window)) return;
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(expression.text);
-    utterance.lang = "en-US";
-    utterance.rate = .9;
-    speechSynthesis.speak(utterance);
-  };
   const practice = async () => { if (await startSession("scenario", expression.scenarioId)) router.push("/session"); };
   return (
     <div className="page">
-      <div className="detail-header"><BackButton /><h1>Expression</h1><button className="icon-button" onClick={speak} aria-label="Play pronunciation"><Volume2 size={20} /></button></div>
-      <div className="detail-copy"><p className="eyebrow">{theme?.title} · {scenario?.title}</p><h1>{expression.text}</h1><p>{expression.meaning}</p><div style={{ marginTop: 14 }}><StatusPill status={(progress[id] ?? createProgress(id)).status} /></div></div>
+      <div className="detail-header"><BackButton /><h1>Expression</h1><SpeechButton text={expression.text} label="Play pronunciation" rate={.9} className="icon-button" iconOnly /></div>
+      <div className="detail-copy"><p className="eyebrow">{theme?.title} · {scenario?.title}</p><PronounceablePhrase text={expression.text} /><p>{expression.meaning}</p><div style={{ marginTop: 14 }}><StatusPill status={(progress[id] ?? createProgress(id)).status} /></div></div>
       <section className="detail-card"><h2>Example</h2><strong>{expression.examples[0].english}</strong><p>{expression.examples[0].chinese}</p></section>
       {expression.variants.map((variant) => <section className="detail-card" key={variant.id}><h2>Natural variation</h2><strong>{variant.text}</strong><p>{variant.meaning}</p></section>)}
       {expression.notes && <section className="detail-card"><h2>Note</h2><p style={{ marginTop: 0 }}>{expression.notes}</p></section>}

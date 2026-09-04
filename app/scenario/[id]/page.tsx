@@ -18,7 +18,7 @@ export default function ScenarioPage() {
   const scenario = scenarioById(id);
   if (!scenario) return <div className="page"><div className="empty-state"><strong>Scenario not found</strong></div></div>;
   const theme = themeById(scenario.themeId);
-  const items = expressions.filter((item) => item.scenarioId === id);
+  const items = expressions.filter((item) => id === "personal" ? item.savedToPersonal : item.scenarioId === id);
   const practice = async () => { if (await startSession("scenario", id)) router.push("/session"); };
   return (
     <div className="page">

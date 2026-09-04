@@ -14,6 +14,7 @@ export const themes: Theme[] = [
 ];
 
 export const scenarios: Scenario[] = [
+  { id: "personal", title: "My Phrases", themeId: "daily-life", description: "Expressions you asked PhraseChu to save." },
   { id: "running-late", title: "Running Late", themeId: "daily-life", description: "Let people know when plans slip." },
   { id: "making-plans", title: "Making Plans", themeId: "social", description: "Find a time that works." },
   { id: "taking-subway", title: "Taking the Subway", themeId: "commuting", description: "Navigate a busy metro." },

@@ -9,12 +9,12 @@ export const metadata: Metadata = {
   description: "Learn less. Say more. Turn useful expressions into active English.",
   applicationName: "PhraseChu",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "PhraseChu" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "PhraseChu" },
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fbf8f1",
+  themeColor: "#08245c",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

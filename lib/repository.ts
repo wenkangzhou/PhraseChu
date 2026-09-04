@@ -1,10 +1,11 @@
-import { expressions } from "@/lib/data/expressions";
+import { expressions as seedExpressions } from "@/lib/data/expressions";
 import { createProgress } from "@/lib/srs";
 import type { AppSettings, Expression, ExpressionProgress, StudySession } from "@/types/domain";
 
 export interface PhraseChuRepository {
   getExpressions(): Promise<Expression[]>;
   getExpression(id: string): Promise<Expression | null>;
+  saveExpression(expression: Expression): Promise<void>;
   getAllProgress(): Promise<Record<string, ExpressionProgress>>;
   getProgress(expressionId: string): Promise<ExpressionProgress>;
   saveProgress(progress: ExpressionProgress): Promise<void>;
@@ -21,6 +22,8 @@ const KEYS = {
   favorites: "phrasechu.favorites.v1",
   settings: "phrasechu.settings.v1",
   session: "phrasechu.session.v1",
+  personalExpressions: "phrasechu.personal-expressions.v1",
+  personalExpressionIds: "phrasechu.personal-expression-ids.v1",
 };
 
 const canUseStorage = () => typeof window !== "undefined" && Boolean(window.localStorage);
@@ -40,8 +43,24 @@ function write<T>(key: string, value: T) {
 }
 
 export class LocalRepository implements PhraseChuRepository {
-  async getExpressions() { return expressions; }
-  async getExpression(id: string) { return expressions.find((item) => item.id === id) ?? null; }
+  async getExpressions() {
+    const savedIds = read<string[]>(KEYS.personalExpressionIds, []);
+    const savedSeeds = seedExpressions.map((item) => savedIds.includes(item.id) ? { ...item, savedToPersonal: true } : item);
+    return [...savedSeeds, ...read<Expression[]>(KEYS.personalExpressions, [])];
+  }
+  async getExpression(id: string) {
+    return (await this.getExpressions()).find((item) => item.id === id) ?? null;
+  }
+  async saveExpression(expression: Expression) {
+    if (seedExpressions.some((item) => item.id === expression.id)) {
+      const savedIds = read<string[]>(KEYS.personalExpressionIds, []);
+      if (!savedIds.includes(expression.id)) write(KEYS.personalExpressionIds, [...savedIds, expression.id]);
+      return;
+    }
+    const current = read<Expression[]>(KEYS.personalExpressions, []);
+    const next = [...current.filter((item) => item.id !== expression.id), expression];
+    write(KEYS.personalExpressions, next);
+  }
   async getAllProgress() { return read<Record<string, ExpressionProgress>>(KEYS.progress, {}); }
   async getProgress(expressionId: string) {
     const all = await this.getAllProgress();

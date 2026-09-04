@@ -19,8 +19,8 @@ export default function TodayPage() {
     if (await startSession(kind)) router.push("/session");
   };
   const openSession = () => router.push("/session");
-  const listening = settings.mode === "listen" ? Math.min(4, learnedCount) : 0;
   const planTotal = settings.newPerDay + Math.max(dueCount, Math.min(10, learnedCount));
+  const listening = settings.mode === "listen" ? Math.min(5, Math.max(1, Math.round(planTotal * .25))) : 0;
 
   return (
     <div className="page">

@@ -39,4 +39,4 @@ Secrets, local environment files, Next.js output, and the local `.vercel` direct
 
 ## Data
 
-The MVP ships with 120 expressions across 20 scenarios. Progress, favorites, settings, and session resume state are stored through `LocalRepository` in browser storage. The UI depends on the `PhraseChuRepository` interface, leaving a clean path to a later Supabase repository.
+The app ships with 200 expressions across 20 seed scenarios. Kimi suggestions can be saved into **My Phrases** and immediately join the same search, practice, progress, and favorite flows. Listen mode mixes optional TTS questions into regular practice, and single-word lookup provides IPA, a concise meaning, and browser speech. Expressions, progress, favorites, settings, and session resume state are stored through `LocalRepository` in browser storage. The UI depends on the `PhraseChuRepository` interface, leaving a clean path to a later Supabase repository.
