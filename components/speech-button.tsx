@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Volume2 } from "@/components/icons";
-import { speakEnglish } from "@/lib/speech";
+import { prepareEnglishVoices, speakEnglish } from "@/lib/speech";
 
 type PlaybackState = "idle" | "starting" | "playing" | "error";
 
@@ -20,6 +20,7 @@ export function SpeechButton({
   iconOnly?: boolean;
 }) {
   const [state, setState] = useState<PlaybackState>("idle");
+  useEffect(() => { prepareEnglishVoices(); }, []);
   const visibleLabel = state === "starting" ? "Starting…" : state === "playing" ? "Playing…" : state === "error" ? "Try again" : label;
   const accessibleLabel = state === "error" ? `Audio did not play. Try ${text} again` : state === "playing" ? `Playing ${text}` : `${label}: ${text}`;
 
