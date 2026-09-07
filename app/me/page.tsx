@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { ChevronRight, RotateCcw } from "@/components/icons";
+import { CloudSync } from "@/components/cloud-sync";
 import { DataBackup } from "@/components/data-backup";
 import { LoadingScreen } from "@/components/loading-screen";
 import { ModeSwitcher } from "@/components/mode-switcher";
@@ -78,6 +79,7 @@ export default function MePage() {
       })}</div> : <div className="empty-insight"><strong>No completed sessions yet.</strong><span>Your last three sessions will be saved here.</span></div>}
 
       <section className="settings-card"><h2>New expressions per day</h2><p>Keep the daily session useful and finishable.</p><div className="option-row">{options.map((count) => <button className={settings.newPerDay === count ? "active" : ""} key={count} onClick={() => updateSettings({ ...settings, newPerDay: count })}>{count}</button>)}</div></section>
+      <CloudSync />
       <DataBackup />
       <section className="settings-card"><h2>Learning principle</h2><p style={{ marginBottom: 0 }}>Learn less. Say more. Progress comes from recall, not time spent in the app.</p></section>
     </div>

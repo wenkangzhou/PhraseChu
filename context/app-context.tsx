@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { expressions as seedExpressions } from "@/lib/data/expressions";
 import { activeCount as countActive, learningInsights, listeningDueExpressions, nextListeningReviewAt, recentSessions, weeklyActivity } from "@/lib/activity";
+import { clearCloudSyncConfig, generateCloudSyncCode, getCloudSyncConfig, syncCloudBackup, type CloudSyncResult } from "@/lib/cloud-sync";
 import { repository, type BackupImportResult, type PhraseChuBackup } from "@/lib/repository";
 import { generateSession, getDailyPlan, type DailyPlan } from "@/lib/session-generator";
 import { applyReview, createProgress, isDue } from "@/lib/srs";
@@ -44,6 +45,19 @@ interface AppContextValue {
   addPersonalExpression: (input: { meaning: string; natural: string; casual: string; note?: string }) => Promise<Expression>;
   createBackup: () => Promise<PhraseChuBackup>;
   importBackup: (value: unknown) => Promise<BackupImportResult>;
+  cloudSync: CloudSyncState;
+  enableCloudSync: () => Promise<string>;
+  connectCloudSync: (code: string) => Promise<void>;
+  syncNow: () => Promise<void>;
+  disconnectCloudSync: () => void;
+}
+
+export interface CloudSyncState {
+  enabled: boolean;
+  syncCode: string | null;
+  syncing: boolean;
+  lastSyncedAt: string | null;
+  error: string | null;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -86,6 +100,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<StudySession | null>(null);
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>([]);
+  const [cloudSync, setCloudSync] = useState<CloudSyncState>({
+    enabled: false,
+    syncCode: null,
+    syncing: false,
+    lastSyncedAt: null,
+    error: null,
+  });
+  const syncInFlight = useRef<Promise<CloudSyncResult> | null>(null);
+  const syncTimer = useRef<number | null>(null);
 
   const applyRepositorySnapshot = useCallback((snapshot: Awaited<ReturnType<typeof loadRepositorySnapshot>>) => {
     setExpressions(snapshot.expressions);
@@ -103,19 +126,93 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
+  const runCloudSync = useCallback((code: string, requireExisting = false) => {
+    if (syncInFlight.current) return syncInFlight.current;
+    const stored = getCloudSyncConfig();
+    setCloudSync({
+      enabled: Boolean(stored),
+      syncCode: stored?.code ?? null,
+      syncing: true,
+      lastSyncedAt: stored?.lastSyncedAt ?? null,
+      error: null,
+    });
+
+    const operation = syncCloudBackup(code, requireExisting)
+      .then(async (result) => {
+        applyRepositorySnapshot(await loadRepositorySnapshot());
+        setCloudSync({
+          enabled: true,
+          syncCode: result.code,
+          syncing: false,
+          lastSyncedAt: result.lastSyncedAt,
+          error: null,
+        });
+        return result;
+      })
+      .catch((error: unknown) => {
+        const current = getCloudSyncConfig();
+        setCloudSync({
+          enabled: Boolean(current),
+          syncCode: current?.code ?? null,
+          syncing: false,
+          lastSyncedAt: current?.lastSyncedAt ?? null,
+          error: error instanceof Error ? error.message : "Cloud sync is unavailable.",
+        });
+        throw error;
+      })
+      .finally(() => {
+        syncInFlight.current = null;
+      });
+    syncInFlight.current = operation;
+    return operation;
+  }, [applyRepositorySnapshot]);
+
+  const scheduleCloudSync = useCallback(() => {
+    const config = getCloudSyncConfig();
+    if (!config) return;
+    if (syncTimer.current !== null) window.clearTimeout(syncTimer.current);
+    const flush = () => {
+      if (syncInFlight.current) {
+        syncTimer.current = window.setTimeout(flush, 500);
+        return;
+      }
+      syncTimer.current = null;
+      void runCloudSync(config.code).catch(() => undefined);
+    };
+    syncTimer.current = window.setTimeout(flush, 1400);
+  }, [runCloudSync]);
+
   useEffect(() => {
     let active = true;
     loadRepositorySnapshot().then((snapshot) => { if (active) applyRepositorySnapshot(snapshot); });
+    const config = getCloudSyncConfig();
+    if (config) {
+      void runCloudSync(config.code).catch(() => undefined);
+    }
     return () => { active = false; };
-  }, [applyRepositorySnapshot]);
+  }, [applyRepositorySnapshot, runCloudSync]);
+
+  useEffect(() => {
+    const syncWhenAvailable = () => {
+      if (document.visibilityState === "visible") scheduleCloudSync();
+    };
+    document.addEventListener("visibilitychange", syncWhenAvailable);
+    window.addEventListener("online", syncWhenAvailable);
+    return () => {
+      document.removeEventListener("visibilitychange", syncWhenAvailable);
+      window.removeEventListener("online", syncWhenAvailable);
+      if (syncTimer.current !== null) window.clearTimeout(syncTimer.current);
+    };
+  }, [scheduleCloudSync]);
 
   const startSession = useCallback(async (kind: StudySession["kind"], scenarioId?: string) => {
     const next = generateSession(expressions, kind, progress, favorites, settings, attempts, scenarioId);
     if (!next) return false;
     setSession(next);
     await repository.saveSession(next);
+    scheduleCloudSync();
     return true;
-  }, [attempts, expressions, favorites, progress, settings]);
+  }, [attempts, expressions, favorites, progress, scheduleCloudSync, settings]);
 
   const answerQuestion = useCallback(async (question: PracticeQuestion, rating: ReviewRating) => {
     if (!session) return;
@@ -159,7 +256,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       writes.push(repository.saveSessionSummary(summary));
     }
     await Promise.all(writes);
-  }, [attempts, progress, session]);
+    scheduleCloudSync();
+  }, [attempts, progress, scheduleCloudSync, session]);
 
   const skipQuestion = useCallback(async () => {
     if (!session) return;
@@ -181,29 +279,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       writes.push(repository.saveSessionSummary(summary));
     }
     await Promise.all(writes);
-  }, [progress, session]);
+    scheduleCloudSync();
+  }, [progress, scheduleCloudSync, session]);
 
   const clearSession = useCallback(async () => {
     setSession(null);
     await repository.saveSession(null);
-  }, []);
+    scheduleCloudSync();
+  }, [scheduleCloudSync]);
 
   const toggleFavorite = useCallback(async (id: string) => {
     setFavorites(await repository.toggleFavorite(id));
-  }, []);
+    scheduleCloudSync();
+  }, [scheduleCloudSync]);
 
   const updateSettings = useCallback(async (next: AppSettings) => {
     setSettings(next);
     await repository.saveSettings(next);
-  }, []);
+    scheduleCloudSync();
+  }, [scheduleCloudSync]);
 
   const createBackup = useCallback(() => repository.createBackup(), []);
 
   const importBackup = useCallback(async (value: unknown) => {
     const result = await repository.importBackup(value);
     applyRepositorySnapshot(await loadRepositorySnapshot());
+    scheduleCloudSync();
     return result;
-  }, [applyRepositorySnapshot]);
+  }, [applyRepositorySnapshot, scheduleCloudSync]);
 
   const addPersonalExpression = useCallback(async ({ meaning, natural, casual, note }: { meaning: string; natural: string; casual: string; note?: string }) => {
     const existing = expressions.find((item) => item.text.trim().toLowerCase() === natural.trim().toLowerCase());
@@ -212,6 +315,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const saved = { ...existing, savedToPersonal: true };
       await repository.saveExpression(saved);
       setExpressions((current) => current.map((item) => item.id === saved.id ? saved : item));
+      scheduleCloudSync();
       return saved;
     }
     const id = `personal-${Date.now()}`;
@@ -236,8 +340,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     await repository.saveExpression(expression);
     setExpressions((current) => [...current, expression]);
+    scheduleCloudSync();
     return expression;
-  }, [expressions]);
+  }, [expressions, scheduleCloudSync]);
+
+  const enableCloudSync = useCallback(async () => {
+    const code = generateCloudSyncCode();
+    const result = await runCloudSync(code);
+    return result.code;
+  }, [runCloudSync]);
+
+  const connectCloudSync = useCallback(async (code: string) => {
+    await runCloudSync(code, true);
+  }, [runCloudSync]);
+
+  const syncNow = useCallback(async () => {
+    const config = getCloudSyncConfig();
+    if (!config) throw new Error("Cloud sync is not connected on this device.");
+    await runCloudSync(config.code);
+  }, [runCloudSync]);
+
+  const disconnectCloudSync = useCallback(() => {
+    if (syncTimer.current !== null) {
+      window.clearTimeout(syncTimer.current);
+      syncTimer.current = null;
+    }
+    clearCloudSyncConfig();
+    setCloudSync({ enabled: false, syncCode: null, syncing: false, lastSyncedAt: null, error: null });
+  }, []);
 
   const metrics = useMemo(() => {
     const values = Object.values(progress);
@@ -289,7 +419,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addPersonalExpression,
     createBackup,
     importBackup,
-  }), [addPersonalExpression, answerQuestion, clearSession, createBackup, dailyPlan, expressions, favorites, importBackup, insights, latestSessions, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, toggleFavorite, updateSettings, weeklyStats]);
+    cloudSync,
+    enableCloudSync,
+    connectCloudSync,
+    syncNow,
+    disconnectCloudSync,
+  }), [addPersonalExpression, answerQuestion, clearSession, cloudSync, connectCloudSync, createBackup, dailyPlan, disconnectCloudSync, enableCloudSync, expressions, favorites, importBackup, insights, latestSessions, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, syncNow, toggleFavorite, updateSettings, weeklyStats]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
