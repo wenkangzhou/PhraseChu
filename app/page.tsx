@@ -11,7 +11,7 @@ import { themes } from "@/lib/data/catalog";
 
 export default function TodayPage() {
   const router = useRouter();
-  const { ready, activeCount, dueCount, learnedCount, settings, session, startSession } = usePhraseChu();
+  const { ready, activeCount, learnedCount, dailyPlan, weeklyStats, session, startSession } = usePhraseChu();
 
   if (!ready) return <div className="page"><LoadingScreen /></div>;
 
@@ -19,9 +19,6 @@ export default function TodayPage() {
     if (await startSession(kind)) router.push("/session");
   };
   const openSession = () => router.push("/session");
-  const planTotal = settings.newPerDay + Math.max(dueCount, Math.min(10, learnedCount));
-  const listening = settings.mode === "listen" ? Math.min(5, Math.max(1, Math.round(planTotal * .25))) : 0;
-
   return (
     <div className="page">
       <AppHeader action={<ModeSwitcher />} />
@@ -33,18 +30,18 @@ export default function TodayPage() {
             <strong className="active-number">{activeCount}</strong>
             <span className="active-label">Active Expressions</span>
           </div>
-          <span className="week-chip">Phrase first</span>
+          <span className="week-chip">+{weeklyStats.activeGained} this week</span>
         </div>
       </section>
 
-      <div className="section-title-row"><h2>Today</h2><span>{planTotal ? "Ready when you are" : "All clear"}</span></div>
+      <div className="section-title-row"><h2>Today</h2><span>{dailyPlan.questionCount ? "Ready when you are" : "All clear"}</span></div>
       <section className="plan-card">
         <div className="plan-stats">
-          <div className="plan-stat"><strong>{settings.newPerDay}</strong><span>New</span></div>
-          <div className="plan-stat"><strong>{dueCount || Math.min(10, learnedCount)}</strong><span>Review</span></div>
-          <div className="plan-stat"><strong>{listening}</strong><span>Listening</span></div>
+          <div className="plan-stat"><strong>{dailyPlan.newCount}</strong><span>New</span></div>
+          <div className="plan-stat"><strong>{dailyPlan.reviewCount}</strong><span>Review</span></div>
+          <div className="plan-stat"><strong>{dailyPlan.listeningCount}</strong><span>Listening</span></div>
         </div>
-        <div className="plan-time"><Clock3 size={15} /> ≈ {Math.max(3, Math.ceil(planTotal * .45))} min</div>
+        <div className="plan-time"><Clock3 size={15} /> ≈ {dailyPlan.estimatedMinutes} min</div>
         {session && !session.completed ? (
           <button className="primary-button" onClick={openSession}>Continue Session · {session.currentIndex}/{session.questionIds.length}<ChevronRight size={19} /></button>
         ) : session?.completed ? (

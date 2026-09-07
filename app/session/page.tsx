@@ -19,7 +19,7 @@ export default function SessionPage() {
     const activeGain = Math.max(0, activeCount - session.initialActiveCount);
     const done = async () => { await clearSession(); router.push("/"); };
     const more = async () => { await clearSession(); if (await startSession("quick")) router.refresh(); else router.push("/"); };
-    return <div className="complete"><div className="complete-mark"><Check size={34} strokeWidth={3} /></div><h1>Nice work.</h1><p>You kept the flow focused and useful.</p><div className="complete-stats"><div><strong>{minutes}</strong><span>Minutes</span></div><div><strong>{session.newCount}</strong><span>New</span></div><div><strong>+{activeGain}</strong><span>Active</span></div></div><button className="primary-button" onClick={done}>Done</button><button className="text-button" onClick={more}>Practice 2 more minutes</button></div>;
+    return <div className="complete"><div className="complete-mark"><Check size={34} strokeWidth={3} /></div><h1>Nice work.</h1><p>You kept the flow focused and useful.</p><div className="complete-stats"><div><strong>{minutes}</strong><span>Minutes</span></div><div><strong>{session.newCount}</strong><span>New</span></div><div><strong>{session.reviewCount}</strong><span>Reviews</span></div><div><strong>+{activeGain}</strong><span>Active</span></div></div><button className="primary-button" onClick={done}>Done</button><button className="text-button" onClick={more}>Practice 2 more minutes</button></div>;
   }
 
   const question = parseQuestionId(session.questionIds[session.currentIndex], expressions);

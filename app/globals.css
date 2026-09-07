@@ -184,6 +184,7 @@ a { color: inherit; text-decoration: none; }
 .profile-hero strong { display: block; margin-top: 6px; font: 800 56px/.95 var(--font-display),sans-serif; letter-spacing: -3px; }
 .profile-hero span { display: block; margin-top: 8px; color: #c9d5e8; font-weight: 700; }
 .metric-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.weekly-metrics { margin-bottom: 20px; }
 .metric-card { padding: 16px 10px; text-align: center; border: 1px solid var(--line); border-radius: 18px; background: white; }
 .metric-card strong { display: block; font: 800 24px/1 var(--font-display),sans-serif; }
 .metric-card span { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
@@ -265,7 +266,7 @@ a { color: inherit; text-decoration: none; }
 .complete-mark { width: 76px; height: 76px; margin: 0 auto 22px; display: grid; place-items: center; border-radius: 25px; background: var(--yellow); box-shadow: 0 9px 0 #e1ae00; }
 .complete h1 { margin: 0; font: 800 38px/1.1 var(--font-display),sans-serif; letter-spacing: -1.5px; }
 .complete > p { margin: 10px 0 26px; color: var(--muted); }
-.complete-stats { margin-bottom: 24px; display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.complete-stats { margin-bottom: 24px; display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; }
 .complete-stats div { padding: 15px 6px; border: 1px solid var(--line); border-radius: 17px; background: white; }
 .complete-stats strong { display:block; font:800 22px/1 var(--font-display),sans-serif; }
 .complete-stats span { display:block; margin-top:6px; color:var(--muted); font-size:11px; font-weight:800; }

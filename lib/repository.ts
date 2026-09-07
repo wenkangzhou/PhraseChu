@@ -1,6 +1,6 @@
 import { expressions as seedExpressions } from "@/lib/data/expressions";
 import { createProgress } from "@/lib/srs";
-import type { AppSettings, Expression, ExpressionProgress, StudySession } from "@/types/domain";
+import type { AppSettings, Expression, ExpressionProgress, PracticeAttempt, SessionSummary, StudySession } from "@/types/domain";
 
 export interface PhraseChuRepository {
   getExpressions(): Promise<Expression[]>;
@@ -15,6 +15,10 @@ export interface PhraseChuRepository {
   saveSettings(settings: AppSettings): Promise<void>;
   getSession(): Promise<StudySession | null>;
   saveSession(session: StudySession | null): Promise<void>;
+  getAttempts(): Promise<PracticeAttempt[]>;
+  saveAttempt(attempt: PracticeAttempt): Promise<void>;
+  getSessionSummaries(): Promise<SessionSummary[]>;
+  saveSessionSummary(summary: SessionSummary): Promise<void>;
 }
 
 const KEYS = {
@@ -24,9 +28,11 @@ const KEYS = {
   session: "phrasechu.session.v1",
   personalExpressions: "phrasechu.personal-expressions.v1",
   personalExpressionIds: "phrasechu.personal-expression-ids.v1",
+  attempts: "phrasechu.practice-attempts.v1",
+  sessionSummaries: "phrasechu.session-summaries.v1",
 };
 
-const canUseStorage = () => typeof window !== "undefined" && Boolean(window.localStorage);
+const canUseStorage = () => typeof window !== "undefined";
 
 function read<T>(key: string, fallback: T): T {
   if (!canUseStorage()) return fallback;
@@ -39,7 +45,12 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write<T>(key: string, value: T) {
-  if (canUseStorage()) window.localStorage.setItem(key, JSON.stringify(value));
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // The app remains usable when storage is disabled or full.
+  }
 }
 
 export class LocalRepository implements PhraseChuRepository {
@@ -81,6 +92,16 @@ export class LocalRepository implements PhraseChuRepository {
   async saveSettings(settings: AppSettings) { write(KEYS.settings, settings); }
   async getSession() { return read<StudySession | null>(KEYS.session, null); }
   async saveSession(session: StudySession | null) { write(KEYS.session, session); }
+  async getAttempts() { return read<PracticeAttempt[]>(KEYS.attempts, []); }
+  async saveAttempt(attempt: PracticeAttempt) {
+    const current = await this.getAttempts();
+    write(KEYS.attempts, [...current, attempt].slice(-5000));
+  }
+  async getSessionSummaries() { return read<SessionSummary[]>(KEYS.sessionSummaries, []); }
+  async saveSessionSummary(summary: SessionSummary) {
+    const current = await this.getSessionSummaries();
+    write(KEYS.sessionSummaries, [...current.filter((item) => item.id !== summary.id), summary].slice(-500));
+  }
 }
 
 export const repository = new LocalRepository();

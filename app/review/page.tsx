@@ -10,14 +10,14 @@ import type { StudySession } from "@/types/domain";
 
 export default function ReviewPage() {
   const router = useRouter();
-  const { ready, dueCount, hardCount, learnedCount, favorites, startSession } = usePhraseChu();
+  const { ready, dueCount, hardCount, learnedCount, listeningDueCount, favorites, startSession } = usePhraseChu();
   if (!ready) return <div className="page"><LoadingScreen /></div>;
 
   const launch = async (kind: StudySession["kind"]) => { if (await startSession(kind)) router.push("/session"); };
   const cards = [
     { label: "Due", count: dueCount, icon: RotateCcw, kind: "due" as const },
     { label: "Hard", count: hardCount, icon: BookOpen, kind: "hard" as const },
-    { label: "Listening", count: Math.min(12, learnedCount), icon: Headphones, kind: "listening" as const },
+    { label: "Listening", count: listeningDueCount, icon: Headphones, kind: "listening" as const },
     { label: "Favorites", count: favorites.length, icon: Star, kind: "favorite" as const },
   ];
   return (

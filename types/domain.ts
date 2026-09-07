@@ -87,6 +87,36 @@ export interface StudySession {
   newCount: number;
   reviewCount: number;
   initialActiveCount: number;
+  answeredCount: number;
+  correctCount: number;
+  skippedCount: number;
+}
+
+export interface PracticeAttempt {
+  id: string;
+  sessionId: string;
+  expressionId: string;
+  questionType: QuestionType;
+  rating: ReviewRating;
+  correct: boolean;
+  wasNew: boolean;
+  becameActive: boolean;
+  attemptedAt: string;
+  nextListeningAt?: string;
+}
+
+export interface SessionSummary {
+  id: string;
+  kind: StudySession["kind"];
+  startedAt: string;
+  completedAt: string;
+  questionCount: number;
+  answeredCount: number;
+  correctCount: number;
+  skippedCount: number;
+  newCount: number;
+  reviewCount: number;
+  activeGain: number;
 }
 
 export interface AppSettings {
