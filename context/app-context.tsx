@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { expressions as seedExpressions } from "@/lib/data/expressions";
-import { activeCount as countActive, listeningDueExpressions, nextListeningReviewAt, weeklyActivity } from "@/lib/activity";
+import { activeCount as countActive, learningInsights, listeningDueExpressions, nextListeningReviewAt, recentSessions, weeklyActivity } from "@/lib/activity";
 import { repository } from "@/lib/repository";
 import { generateSession, getDailyPlan, type DailyPlan } from "@/lib/session-generator";
 import { applyReview, createProgress, isDue } from "@/lib/srs";
@@ -33,6 +33,8 @@ interface AppContextValue {
   listeningDueCount: number;
   dailyPlan: DailyPlan;
   weeklyStats: ReturnType<typeof weeklyActivity>;
+  learningInsights: ReturnType<typeof learningInsights>;
+  recentSessions: ReturnType<typeof recentSessions>;
   startSession: (kind: StudySession["kind"], scenarioId?: string) => Promise<boolean>;
   answerQuestion: (question: PracticeQuestion, rating: ReviewRating) => Promise<void>;
   skipQuestion: () => Promise<void>;
@@ -237,6 +239,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const listeningDueCount = useMemo(() => listeningDueExpressions(expressions, progress, attempts).length, [attempts, expressions, progress]);
   const weeklyStats = useMemo(() => weeklyActivity(attempts, sessionSummaries), [attempts, sessionSummaries]);
+  const insights = useMemo(() => learningInsights(expressions, progress, attempts), [attempts, expressions, progress]);
+  const latestSessions = useMemo(() => recentSessions(sessionSummaries), [sessionSummaries]);
   const dailyPlan = useMemo(() => {
     if (!session) return getDailyPlan(expressions, progress, favorites, settings, attempts);
     const listeningCount = session.questionIds.filter((id) => id.startsWith("q2|listening|")).length;
@@ -259,6 +263,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ...metrics,
     listeningDueCount,
     weeklyStats,
+    learningInsights: insights,
+    recentSessions: latestSessions,
     dailyPlan,
     startSession,
     answerQuestion,
@@ -267,7 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleFavorite,
     updateSettings,
     addPersonalExpression,
-  }), [addPersonalExpression, answerQuestion, clearSession, dailyPlan, expressions, favorites, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, toggleFavorite, updateSettings, weeklyStats]);
+  }), [addPersonalExpression, answerQuestion, clearSession, dailyPlan, expressions, favorites, insights, latestSessions, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, toggleFavorite, updateSettings, weeklyStats]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

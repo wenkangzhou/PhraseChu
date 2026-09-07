@@ -1,16 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
+import { ChevronRight } from "@/components/icons";
 import { LoadingScreen } from "@/components/loading-screen";
 import { ModeSwitcher } from "@/components/mode-switcher";
 import { PageHeading } from "@/components/page-heading";
 import { usePhraseChu } from "@/context/app-context";
-import type { AppSettings } from "@/types/domain";
+import type { AppSettings, StudySession } from "@/types/domain";
 
 const options: AppSettings["newPerDay"][] = [3, 5, 8, 10];
+const sessionLabels: Record<StudySession["kind"], string> = {
+  daily: "Daily session",
+  quick: "Quick practice",
+  scenario: "Scenario practice",
+  due: "Due review",
+  hard: "Hard expressions",
+  favorite: "Favorites",
+  listening: "Listening",
+};
 
 export default function MePage() {
-  const { ready, activeCount, familiarCount, learningCount, learnedCount, progress, settings, weeklyStats, updateSettings } = usePhraseChu();
+  const { ready, activeCount, familiarCount, learningCount, learnedCount, progress, settings, weeklyStats, learningInsights, recentSessions, updateSettings } = usePhraseChu();
   if (!ready) return <div className="page"><LoadingScreen /></div>;
   const reviews = Object.values(progress).reduce((sum, item) => sum + item.reviewCount, 0);
   return (
@@ -27,8 +38,31 @@ export default function MePage() {
       <div className="metric-grid weekly-metrics">
         <div className="metric-card"><strong>+{weeklyStats.activeGained}</strong><span>Active</span></div>
         <div className="metric-card"><strong>{weeklyStats.reviews}</strong><span>Reviews</span></div>
+        <div className="metric-card"><strong>{weeklyStats.accuracy === null ? "—" : `${weeklyStats.accuracy}%`}</strong><span>Accuracy</span></div>
         <div className="metric-card"><strong>{weeklyStats.studyDays}</strong><span>Study days</span></div>
       </div>
+
+      <div className="section-title-row"><h2>Needs attention</h2><span>{learningInsights.length ? "Based on recent answers" : "Nothing yet"}</span></div>
+      {learningInsights.length ? <div className="learning-insight-list">{learningInsights.map(({ expression, mastery, reason }) => (
+        <Link className="learning-insight-row" href={`/expression/${expression.id}`} key={expression.id}>
+          <div>
+            <strong>{expression.text}</strong>
+            <span>{reason === "again" ? "Review again" : reason === "hard" ? "Felt hard" : "Still learning"} · {mastery}% mastery</span>
+            <span className="mastery-track" role="progressbar" aria-label={`${mastery}% mastery`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={mastery}><i style={{ width: `${mastery}%` }} /></span>
+          </div>
+          <ChevronRight size={18} />
+        </Link>
+      ))}</div> : <div className="empty-insight"><strong>Your weak phrases will appear here.</strong><span>Finish a practice session to get a focused review list.</span></div>}
+
+      <div className="section-title-row"><h2>Recent sessions</h2><span>{recentSessions.length ? "Latest first" : "No sessions yet"}</span></div>
+      {recentSessions.length ? <div className="recent-session-list">{recentSessions.map((item) => {
+        const accuracy = item.answeredCount ? `${Math.round(item.correctCount / item.answeredCount * 100)}%` : "—";
+        return <div className="recent-session-row" key={item.id}>
+          <div><strong>{sessionLabels[item.kind]}</strong><span>{new Date(item.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {item.answeredCount} answered{item.skippedCount ? ` · ${item.skippedCount} skipped` : ""}</span></div>
+          <b>{accuracy}</b>
+        </div>;
+      })}</div> : <div className="empty-insight"><strong>No completed sessions yet.</strong><span>Your last three sessions will be saved here.</span></div>}
+
       <section className="settings-card"><h2>New expressions per day</h2><p>Keep the daily session useful and finishable.</p><div className="option-row">{options.map((count) => <button className={settings.newPerDay === count ? "active" : ""} key={count} onClick={() => updateSettings({ ...settings, newPerDay: count })}>{count}</button>)}</div></section>
       <section className="settings-card"><h2>Learning principle</h2><p style={{ marginBottom: 0 }}>Learn less. Say more. Progress comes from recall, not time spent in the app.</p></section>
     </div>

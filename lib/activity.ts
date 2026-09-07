@@ -64,8 +64,57 @@ export function weeklyActivity(attempts: PracticeAttempt[], summaries: SessionSu
   return {
     activeGained: activeExpressions.size,
     reviews: recentAttempts.length,
+    accuracy: recentAttempts.length
+      ? Math.round(recentAttempts.filter((attempt) => attempt.correct).length / recentAttempts.length * 100)
+      : null,
     studyDays: studyDays.size,
   };
+}
+
+export interface LearningInsight {
+  expression: Expression;
+  mastery: number;
+  reason: "again" | "hard" | "low-mastery";
+}
+
+export function learningInsights(
+  expressions: Expression[],
+  progress: Record<string, ExpressionProgress>,
+  attempts: PracticeAttempt[],
+  limit = 4,
+): LearningInsight[] {
+  const latestAttempts = new Map<string, PracticeAttempt>();
+  for (const attempt of attempts) {
+    const current = latestAttempts.get(attempt.expressionId);
+    if (!current || current.attemptedAt < attempt.attemptedAt) latestAttempts.set(attempt.expressionId, attempt);
+  }
+
+  return expressions
+    .flatMap((expression) => {
+      const item = progress[expression.id];
+      if (!item?.reviewCount || item.status === "mastered") return [];
+      const latest = latestAttempts.get(expression.id);
+      const reason = latest?.rating === "again"
+        ? "again" as const
+        : latest?.rating === "hard"
+          ? "hard" as const
+          : "low-mastery" as const;
+      return [{ expression, mastery: item.mastery, reason, reviewedAt: item.lastReviewedAt ?? "" }];
+    })
+    .sort((a, b) => {
+      const priority = { again: 0, hard: 1, "low-mastery": 2 };
+      return priority[a.reason] - priority[b.reason]
+        || a.mastery - b.mastery
+        || b.reviewedAt.localeCompare(a.reviewedAt);
+    })
+    .slice(0, limit)
+    .map(({ expression, mastery, reason }) => ({ expression, mastery, reason }));
+}
+
+export function recentSessions(summaries: SessionSummary[], limit = 3) {
+  return [...summaries]
+    .sort((a, b) => b.completedAt.localeCompare(a.completedAt))
+    .slice(0, limit);
 }
 
 export function activeCount(progress: Record<string, ExpressionProgress>) {
