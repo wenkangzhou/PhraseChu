@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { expressions as seedExpressions } from "@/lib/data/expressions";
 import { activeCount as countActive, learningInsights, listeningDueExpressions, nextListeningReviewAt, recentSessions, weeklyActivity } from "@/lib/activity";
-import { repository } from "@/lib/repository";
+import { repository, type BackupImportResult, type PhraseChuBackup } from "@/lib/repository";
 import { generateSession, getDailyPlan, type DailyPlan } from "@/lib/session-generator";
 import { applyReview, createProgress, isDue } from "@/lib/srs";
 import type {
@@ -42,6 +42,8 @@ interface AppContextValue {
   toggleFavorite: (id: string) => Promise<void>;
   updateSettings: (settings: AppSettings) => Promise<void>;
   addPersonalExpression: (input: { meaning: string; natural: string; casual: string; note?: string }) => Promise<Expression>;
+  createBackup: () => Promise<PhraseChuBackup>;
+  importBackup: (value: unknown) => Promise<BackupImportResult>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -62,6 +64,19 @@ function summaryFor(session: StudySession, progress: Record<string, ExpressionPr
   };
 }
 
+async function loadRepositorySnapshot() {
+  const [expressions, progress, favorites, settings, session, attempts, summaries] = await Promise.all([
+    repository.getExpressions(),
+    repository.getAllProgress(),
+    repository.getFavorites(),
+    repository.getSettings(),
+    repository.getSession(),
+    repository.getAttempts(),
+    repository.getSessionSummaries(),
+  ]);
+  return { expressions, progress, favorites, settings, session, attempts, summaries };
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [expressions, setExpressions] = useState(seedExpressions);
@@ -72,36 +87,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>([]);
 
+  const applyRepositorySnapshot = useCallback((snapshot: Awaited<ReturnType<typeof loadRepositorySnapshot>>) => {
+    setExpressions(snapshot.expressions);
+    setProgress(snapshot.progress);
+    setFavorites(snapshot.favorites);
+    setSettings(snapshot.settings);
+    setSession(snapshot.session ? {
+      ...snapshot.session,
+      answeredCount: snapshot.session.answeredCount ?? 0,
+      correctCount: snapshot.session.correctCount ?? 0,
+      skippedCount: snapshot.session.skippedCount ?? 0,
+    } : null);
+    setAttempts(snapshot.attempts);
+    setSessionSummaries(snapshot.summaries);
+    setReady(true);
+  }, []);
+
   useEffect(() => {
     let active = true;
-    Promise.all([
-      repository.getExpressions(),
-      repository.getAllProgress(),
-      repository.getFavorites(),
-      repository.getSettings(),
-      repository.getSession(),
-      repository.getAttempts(),
-      repository.getSessionSummaries(),
-    ]).then(
-      ([savedExpressions, savedProgress, savedFavorites, savedSettings, savedSession, savedAttempts, savedSummaries]) => {
-        if (!active) return;
-        setExpressions(savedExpressions);
-        setProgress(savedProgress);
-        setFavorites(savedFavorites);
-        setSettings(savedSettings);
-        setSession(savedSession ? {
-          ...savedSession,
-          answeredCount: savedSession.answeredCount ?? 0,
-          correctCount: savedSession.correctCount ?? 0,
-          skippedCount: savedSession.skippedCount ?? 0,
-        } : null);
-        setAttempts(savedAttempts);
-        setSessionSummaries(savedSummaries);
-        setReady(true);
-      },
-    );
+    loadRepositorySnapshot().then((snapshot) => { if (active) applyRepositorySnapshot(snapshot); });
     return () => { active = false; };
-  }, []);
+  }, [applyRepositorySnapshot]);
 
   const startSession = useCallback(async (kind: StudySession["kind"], scenarioId?: string) => {
     const next = generateSession(expressions, kind, progress, favorites, settings, attempts, scenarioId);
@@ -191,6 +197,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await repository.saveSettings(next);
   }, []);
 
+  const createBackup = useCallback(() => repository.createBackup(), []);
+
+  const importBackup = useCallback(async (value: unknown) => {
+    const result = await repository.importBackup(value);
+    applyRepositorySnapshot(await loadRepositorySnapshot());
+    return result;
+  }, [applyRepositorySnapshot]);
+
   const addPersonalExpression = useCallback(async ({ meaning, natural, casual, note }: { meaning: string; natural: string; casual: string; note?: string }) => {
     const existing = expressions.find((item) => item.text.trim().toLowerCase() === natural.trim().toLowerCase());
     if (existing) {
@@ -273,7 +287,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleFavorite,
     updateSettings,
     addPersonalExpression,
-  }), [addPersonalExpression, answerQuestion, clearSession, dailyPlan, expressions, favorites, insights, latestSessions, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, toggleFavorite, updateSettings, weeklyStats]);
+    createBackup,
+    importBackup,
+  }), [addPersonalExpression, answerQuestion, clearSession, createBackup, dailyPlan, expressions, favorites, importBackup, insights, latestSessions, listeningDueCount, metrics, progress, ready, session, settings, skipQuestion, startSession, toggleFavorite, updateSettings, weeklyStats]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
