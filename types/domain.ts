@@ -77,7 +77,7 @@ export interface PracticeQuestion {
 
 export interface StudySession {
   id: string;
-  kind: "daily" | "quick" | "scenario" | "due" | "hard" | "favorite" | "listening";
+  kind: "daily" | "quick" | "scenario" | "due" | "hard" | "weak" | "favorite" | "listening";
   questionIds: string[];
   expressionIds: string[];
   currentIndex: number;

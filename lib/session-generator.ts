@@ -1,4 +1,4 @@
-import { listeningDueExpressions, newExpressionIdsToday } from "@/lib/activity";
+import { learningInsights, listeningDueExpressions, newExpressionIdsToday } from "@/lib/activity";
 import { isDue } from "@/lib/srs";
 import { createSessionSeed, shuffledWithSeed } from "@/lib/random";
 import type { AppSettings, Expression, ExpressionProgress, PracticeAttempt, QuestionType, StudySession } from "@/types/domain";
@@ -58,6 +58,7 @@ function selectExpressions(
   if (kind === "quick") selected = [...due, ...weak].slice(0, 7);
   if (kind === "due") selected = due.slice(0, 20);
   if (kind === "hard") selected = shuffledWithSeed(learned.filter((item) => progressMap[item.id].lastResult === "hard" || progressMap[item.id].lastResult === "again"), `${seed}:hard`).slice(0, 20);
+  if (kind === "weak") selected = learningInsights(expressions, progressMap, attempts).map((item) => item.expression);
   if (kind === "favorite") selected = shuffledWithSeed(expressions.filter((item) => favorites.includes(item.id)), `${seed}:favorite`).slice(0, 20);
   if (kind === "scenario") selected = shuffledWithSeed(expressions.filter((item) => scenarioId === "personal" ? item.savedToPersonal : item.scenarioId === scenarioId), `${seed}:scenario`);
   if (kind === "listening") selected = shuffledWithSeed(listeningDueExpressions(expressions, progressMap, attempts), `${seed}:listening`).slice(0, 12);
