@@ -1,7 +1,7 @@
 import { learningInsights, listeningDueExpressions, newExpressionIdsToday } from "@/lib/activity";
 import { isDue } from "@/lib/srs";
 import { createSessionSeed, shuffledWithSeed } from "@/lib/random";
-import type { AppSettings, Expression, ExpressionProgress, PracticeAttempt, QuestionType, StudySession } from "@/types/domain";
+import type { AppSettings, Expression, ExpressionProgress, Level, PracticeAttempt, QuestionType, StudySession } from "@/types/domain";
 
 type SessionKind = StudySession["kind"];
 
@@ -117,9 +117,11 @@ export function generateSession(
   settings: AppSettings,
   attempts: PracticeAttempt[],
   scenarioId?: string,
+  level?: Level,
 ): StudySession | null {
   const seed = createSessionSeed();
-  const selection = selectExpressions(expressions, kind, progressMap, favorites, settings, attempts, seed, scenarioId);
+  const pool = level ? expressions.filter((item) => item.level === level) : expressions;
+  const selection = selectExpressions(pool, kind, progressMap, favorites, settings, attempts, seed, scenarioId);
   if (!selection.length) return null;
 
   const selected = shuffledWithSeed(selection, `${seed}:order`);
@@ -128,7 +130,7 @@ export function generateSession(
     expression,
     type: kind === "listening" ? "listening" as const : practiceTypes[index],
   }));
-  const listeningQuestions = (settings.mode === "listen" ? listeningItems(selected, expressions, kind, progressMap, attempts, seed) : [])
+  const listeningQuestions = (settings.mode === "listen" ? listeningItems(selected, pool, kind, progressMap, attempts, seed) : [])
     .map((expression) => ({ expression, type: "listening" as const }));
   const questions = shuffledWithSeed([...baseQuestions, ...listeningQuestions], `${seed}:question-order`);
   const questionIds = questions.map(({ expression, type }, index) => `q2|${type}|${encodeURIComponent(expression.id)}|${seed}-${index}`);

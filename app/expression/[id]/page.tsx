@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ChevronRight, Star } from "@/components/icons";
+import { LevelBadge } from "@/components/level-badge";
 import { LoadingScreen } from "@/components/loading-screen";
 import { SpeechButton } from "@/components/speech-button";
 import { StatusPill } from "@/components/status-pill";
@@ -25,7 +26,7 @@ export default function ExpressionPage() {
   return (
     <div className="page">
       <div className="detail-header"><BackButton /><h1>Expression</h1><SpeechButton text={expression.text} label="Play pronunciation" rate={.9} className="icon-button" iconOnly /></div>
-      <div className="detail-copy"><p className="eyebrow">{theme?.title} · {scenario?.title}</p><PronounceablePhrase text={expression.text} /><p>{expression.meaning}</p><div style={{ marginTop: 14 }}><StatusPill status={(progress[id] ?? createProgress(id)).status} /></div></div>
+      <div className="detail-copy"><p className="eyebrow">{theme?.title} · {scenario?.title}</p><PronounceablePhrase text={expression.text} /><p>{expression.meaning}</p><div style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "center" }}><LevelBadge level={expression.level} /><StatusPill status={(progress[id] ?? createProgress(id)).status} /></div></div>
       <section className="detail-card"><h2>Example</h2><strong>{expression.examples[0].english}</strong><p>{expression.examples[0].chinese}</p></section>
       {expression.variants.map((variant) => <section className="detail-card" key={variant.id}><h2>Natural variation</h2><strong>{variant.text}</strong><p>{variant.meaning}</p></section>)}
       {expression.notes && <section className="detail-card"><h2>Note</h2><p style={{ marginTop: 0 }}>{expression.notes}</p></section>}

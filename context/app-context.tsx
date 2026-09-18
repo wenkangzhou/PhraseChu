@@ -11,6 +11,7 @@ import type {
   AppSettings,
   Expression,
   ExpressionProgress,
+  Level,
   PracticeAttempt,
   PracticeQuestion,
   ReviewRating,
@@ -36,7 +37,7 @@ interface AppContextValue {
   weeklyStats: ReturnType<typeof weeklyActivity>;
   learningInsights: ReturnType<typeof learningInsights>;
   recentSessions: ReturnType<typeof recentSessions>;
-  startSession: (kind: StudySession["kind"], scenarioId?: string) => Promise<boolean>;
+  startSession: (kind: StudySession["kind"], scenarioId?: string, level?: Level) => Promise<boolean>;
   answerQuestion: (question: PracticeQuestion, rating: ReviewRating) => Promise<void>;
   skipQuestion: () => Promise<void>;
   clearSession: () => Promise<void>;
@@ -205,8 +206,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [scheduleCloudSync]);
 
-  const startSession = useCallback(async (kind: StudySession["kind"], scenarioId?: string) => {
-    const next = generateSession(expressions, kind, progress, favorites, settings, attempts, scenarioId);
+  const startSession = useCallback(async (kind: StudySession["kind"], scenarioId?: string, level?: Level) => {
+    const next = generateSession(expressions, kind, progress, favorites, settings, attempts, scenarioId, level);
     if (!next) return false;
     setSession(next);
     await repository.saveSession(next);
